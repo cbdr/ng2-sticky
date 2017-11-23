@@ -6,30 +6,33 @@ import {Component, ElementRef, Input, Output, EventEmitter, OnInit, AfterViewIni
 })
 export class StickyComponent implements OnInit, AfterViewInit {
 
-    @Input('sticky-zIndex') zIndex: number = 10;
-    @Input('sticky-width') width: string = 'auto';
-    @Input('sticky-offset-top') offsetTop: number = 0;
-    @Input('sticky-offset-bottom') offsetBottom: number = 0;
-    @Input('sticky-start') start: number = 0;
-    @Input('sticky-class') stickClass: string = 'sticky';
-    @Input('sticky-end-class') endStickClass: string = 'sticky-end';
-    @Input('sticky-media-query') mediaQuery: string = '';
-    @Input('sticky-parent') parentMode: boolean = true;
-    @Input('sticky-orientation') orientation: string = 'none';
+    @Input('sticky-zIndex') zIndex = 10;
+    @Input('sticky-width') width = 'auto';
+    @Input('sticky-offset-top') offsetTop = 0;
+    @Input('sticky-offset-bottom') offsetBottom = 0;
+    @Input('sticky-start') start = 0;
+    @Input('sticky-class') stickClass = 'sticky';
+    @Input('sticky-end-class') endStickClass = 'sticky-end';
+    @Input('sticky-media-query') mediaQuery = '';
+    @Input('sticky-parent') parentMode = true;
+    @Input('sticky-orientation') orientation = 'none';
 
     @Output() activated = new EventEmitter();
     @Output() deactivated = new EventEmitter();
     @Output() reset = new EventEmitter();
 
-    private isStuck: boolean = false;
+    private isStuck = false;
 
     private elem: any;
     private container: any;
     private originalCss: any;
 
+    private enableScroll: boolean;
+    private scrollPositionTop: number;
     private windowHeight: number;
     private containerHeight: number;
     private elemHeight: number;
+    private elemTop: number;
     private containerStart: number;
     private scrollFinish: number;
 
@@ -64,15 +67,16 @@ export class StickyComponent implements OnInit, AfterViewInit {
             width: this.getCssValue(this.elem, 'width'),
         };
 
-        if (this.width == 'auto') {
+        if (this.width === 'auto') {
             this.width = this.originalCss.width;
         }
     }
 
     defineDimensions(): void {
-        let containerTop: number = this.getBoundingClientRectValue(this.container, 'top');
+        const containerTop = this.getBoundingClientRectValue(this.container, 'top');
         this.windowHeight = window.innerHeight;
         this.elemHeight = this.getCssNumber(this.elem, 'height');
+        this.elemTop = this.getBoundingClientRectValue(this.elem, 'top');
         this.containerHeight = this.getCssNumber(this.container, 'height');
         this.containerStart = containerTop + this.scrollbarYPos() - this.offsetTop + this.start;
         if (this.parentMode) {
@@ -136,7 +140,6 @@ export class StickyComponent implements OnInit, AfterViewInit {
     }
 
     sticker(): void {
-
         // check media query
         if (this.isStuck && !this.matchMediaQuery()) {
             this.resetElement();
@@ -144,27 +147,73 @@ export class StickyComponent implements OnInit, AfterViewInit {
         }
 
         // detecting when a container's height changes
-        let currentContainerHeight: number = this.getCssNumber(this.container, 'height');
-        if (currentContainerHeight !== this.containerHeight) {
-            this.defineDimensions();
-        }
+        this.defineDimensions();
 
         // check if the sticky element is above the container
+        const currentContainerHeight: number = this.getCssNumber(this.container, 'height');        
         if (this.elemHeight >= currentContainerHeight) {
           return;
         }
 
-        let position: number = this.scrollbarYPos();
+        const prevScrollPositionTop = this.scrollPositionTop;
+        this.scrollPositionTop = this.scrollbarYPos();
 
         // unstick
-        if (this.isStuck && (position < this.containerStart || position > this.scrollFinish) || position > this.scrollFinish) {
+        if (this.isStuck && this.scrollPositionTop < this.containerStart || this.scrollPositionTop > this.scrollFinish) {
             this.resetElement();
-            if (position > this.scrollFinish) this.unstuckElement();
+            if (this.scrollPositionTop > this.scrollFinish) {
+                this.unstuckElement();
+            }
             this.isStuck = false;
         }
         // stick
-        else if (this.isStuck === false && position > this.containerStart && position < this.scrollFinish) {
+        else if (this.isStuck === false && this.scrollPositionTop > this.containerStart && this.scrollPositionTop < this.scrollFinish) {
             this.stuckElement();
+        }
+
+        if (this.isStuck) {
+            const scrollDirection = (this.scrollPositionTop - prevScrollPositionTop) || 0;
+            this.manageScrolling(this.scrollPositionTop - prevScrollPositionTop);
+        }
+    }
+
+    private manageScrolling(scrollDirection: number): void {
+        const scrollUp = scrollDirection < 0;
+        const scrollDown = scrollDirection > 0;
+
+        const viewportOverflowTop = this.elemTop - this.offsetTop;
+        const viewportOverflowBottom = window.innerHeight - (this.elemTop + this.elemHeight);
+
+        const tmp = this.getBoundingClientRectValue(this.elem, 'top') - this.getBoundingClientRectValue(this.container, 'top') + 'px';
+
+        if (scrollUp && viewportOverflowTop < 0) {
+            this.enableScroll = true;
+            Object.assign(this.elem.style, {
+                position: 'absolute',
+                top: tmp,
+                left: 'auto'
+            });
+        } else if (scrollUp && viewportOverflowTop >= 0 && this.enableScroll) {
+            this.enableScroll = false;
+            Object.assign(this.elem.style, {
+                position: 'fixed',
+                top: this.offsetTop + 'px',
+                left: 'auto'
+            });
+        } else if (scrollDown && viewportOverflowBottom < 0) {
+            this.enableScroll = true;
+            Object.assign(this.elem.style, {
+                position: 'absolute',
+                top: tmp,
+                left: 'auto'
+            });
+        } else if (scrollDown && viewportOverflowBottom >= 0 && this.enableScroll) {
+            this.enableScroll = false;
+            Object.assign(this.elem.style, {
+                position: 'fixed',
+                top: (window.innerHeight - this.elem.getBoundingClientRect().height) + 'px',
+                left: 'auto'
+            });
         }
     }
 
@@ -175,7 +224,7 @@ export class StickyComponent implements OnInit, AfterViewInit {
     private getBoundingClientRectValue(element: any, property: string): number {
         let result = 0;
         if (element && element.getBoundingClientRect) {
-            let rect = element.getBoundingClientRect();
+            const rect = element.getBoundingClientRect();
             result = (typeof rect[property] !== 'undefined') ? rect[property] : 0;
         }
         return result;
