@@ -49,9 +49,9 @@ export class StickyComponent implements OnInit, AfterViewInit {
         this.sticker();
     }
 
-    @HostListener('window:scroll', ['$event'])
-    @HostListener('window:resize', ['$event'])
-    @HostListener('window:orientationchange', ['$event'])
+    @HostListener('window:scroll')
+    @HostListener('window:resize')
+    @HostListener('window:orientationchange')
     onChange(): void {
         this.sticker();
     }
@@ -150,7 +150,7 @@ export class StickyComponent implements OnInit, AfterViewInit {
         this.defineDimensions();
 
         // check if the sticky element is above the container
-        const currentContainerHeight: number = this.getCssNumber(this.container, 'height');        
+        const currentContainerHeight: number = this.getCssNumber(this.container, 'height');
         if (this.elemHeight >= currentContainerHeight) {
           return;
         }

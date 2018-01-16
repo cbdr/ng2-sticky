@@ -277,7 +277,7 @@ StickyComponent.propDecorators = {
     'activated': [{ type: Output },],
     'deactivated': [{ type: Output },],
     'reset': [{ type: Output },],
-    'onChange': [{ type: HostListener, args: ['window:scroll', ['$event'],] }, { type: HostListener, args: ['window:resize', ['$event'],] }, { type: HostListener, args: ['window:orientationchange', ['$event'],] },],
+    'onChange': [{ type: HostListener, args: ['window:scroll',] }, { type: HostListener, args: ['window:resize',] }, { type: HostListener, args: ['window:orientationchange',] },],
 };
 
 var StickyModule = (function () {
